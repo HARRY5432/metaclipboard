@@ -5,24 +5,28 @@ const resultEl = document.getElementById('result');
 let ws;
 let mediaRecorder;
 let audioChunks = [];
+let isRecording = false;
 
 function connect() {
-  const host = window.location.hostname || 'localhost';
-  ws = new WebSocket(`ws://${host}:3000`);
+  const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = window.location.host || 'localhost:3000';
+  const url = `${proto}//${host}`;
+  statusEl.textContent = 'Connecting to ' + url;
+  ws = new WebSocket(url);
 
   ws.onopen = () => {
-    statusEl.textContent = 'Connected. Hold button to speak.';
+    statusEl.textContent = 'Connected. Tap button to speak.';
     micBtn.disabled = false;
   };
 
-  ws.onclose = () => {
-    statusEl.textContent = 'Disconnected. Reconnecting...';
+  ws.onclose = (e) => {
+    statusEl.textContent = 'Disconnected (' + e.code + '). Reconnecting...';
     micBtn.disabled = true;
     setTimeout(connect, 2000);
   };
 
   ws.onerror = () => {
-    statusEl.textContent = 'Connection error.';
+    statusEl.textContent = 'WS error connecting to ' + url;
   };
 
   ws.onmessage = (e) => {
@@ -55,7 +59,7 @@ async function startRecording() {
 
     mediaRecorder.start(100);
     micBtn.classList.add('recording');
-    micBtn.textContent = 'Recording...';
+    micBtn.textContent = 'Tap to Stop';
     statusEl.textContent = 'Listening...';
     resultEl.textContent = '';
   } catch (err) {
@@ -68,7 +72,7 @@ function stopRecording() {
     mediaRecorder.stop();
     mediaRecorder.stream.getTracks().forEach(t => t.stop());
     micBtn.classList.remove('recording');
-    micBtn.textContent = 'Hold to Speak';
+    micBtn.textContent = 'Tap to Speak';
     statusEl.textContent = 'Processing...';
 
     setTimeout(() => {
@@ -77,12 +81,16 @@ function stopRecording() {
   }
 }
 
-micBtn.addEventListener('mousedown', startRecording);
-micBtn.addEventListener('mouseup', stopRecording);
-micBtn.addEventListener('mouseleave', stopRecording);
-micBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startRecording(); });
-micBtn.addEventListener('touchend', (e) => { e.preventDefault(); stopRecording(); });
+function toggleRecording() {
+  if (isRecording) {
+    stopRecording();
+  } else {
+    startRecording();
+  }
+  isRecording = !isRecording;
+}
+
+micBtn.addEventListener('click', toggleRecording);
 
 connect();
 
-</content>
